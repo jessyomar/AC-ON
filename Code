@@ -1,0 +1,136 @@
+#include <stdio.h>
+#include <Arduino.h>
+#include "WiFi.h"
+#include <PubSubClient.h>
+#include "driver/gpio.h"
+#include "driver/adc.h"
+
+// WIFI connection information
+#define WIFI "Harry iPhone" // wifi name
+#define password "harry123" // wifi password
+#define timeout 20000 // connection waiting time
+
+// server connection information
+#define server "harryjessy.site" // website name
+
+// temperature sensor information
+#define SENSOR_PIN  34 // output pin for temperature sensor
+#define CONVERSION  1.8 + 32 // raw value conversion to voltage
+
+// distance sensor information
+#define TRIG 23 // trigger pin
+#define ECHO 22 // echo pin
+
+#define led 12 // led pin
+
+const char *Temp = "temp"; // for publishing temperature to website
+const char *Capacity = "capacity"; // for publishing room capacity to website
+
+void wificonnection () // connection to wifi
+{
+  Serial.print("Connecting to WiFi\n");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI, password);
+
+  unsigned long startAttemptTime = millis ();
+
+  while(WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < timeout){
+    Serial.print(".");
+    delay(100);
+  }
+
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.println("Connection to WiFi failed\n");
+    digitalWrite(led, LOW);
+  }
+  else{
+    Serial.print("Connection to WiFi succesful\n");
+    Serial.println(WiFi.localIP());
+    digitalWrite(led, HIGH);
+  }
+}
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void serverconnection() // connection to mqtt broker
+{
+  client.setServer(server,1883);
+
+  while (!client.connected())
+  {
+    Serial.println("Connecting to server");
+
+    if (client.connect("ESP32Client"))
+    {
+      Serial.println("Connection to server succesful\n");
+    }
+    else
+    {
+      Serial.print("Connection to server failed\n");
+      Serial.print(client.state());
+      delay(2000);
+    }
+  }
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  wificonnection();
+  serverconnection();
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11);
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+  pinMode(led, OUTPUT);
+}
+
+void loop()
+{
+  wificonnection();
+  serverconnection();
+  delay(2000);
+
+  long duration, distance;
+  int capacity = 0;
+  
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  duration = pulseIn(ECHO, HIGH); // measures pulse duration from signal changes
+  distance = duration * 0.034 / 2; // changes duration to distance in cm
+
+  if (distance > 250){  // if distance is less than 250cm
+    Serial.println("Person detected"); // prints if someone was detected
+    capacity++;
+    delay(500);
+  }
+    printf("Room Capacity: %d\n", capacity); // prints room capacity
+  
+  
+  uint32_t adc_raw_value = adc1_get_raw(ADC1_CHANNEL_6); // converts input analog voltage to digital value
+  float voltage = (float)adc_raw_value / 4095 * 3.3; // converts digital value to voltage
+
+  float tempcel = (voltage - 0.40) * 100; // voltage conversion to celsius
+  float temp = tempcel * CONVERSION; // celsius to fahrenheit
+
+  printf("Temperature: %.1fC\n", tempcel); // prints temperature in celcius
+  printf("Temperature: %.1fF\n", temp); // prints temperature in fahrenheit
+
+  if (temp < 80) {
+    printf("AC is on\n"); // AC is on if temperature is less than 80F
+  } else {
+    printf("AC is off\n"); // AC is off if temperature is greater than 80F
+  }
+
+  client.publish(Temp, String(temp).c_str()); // publishes temperature in fahrenheit to mqtt broker
+  client.publish(Capacity, String(capacity).c_str()); // publishes room capacity to mqtt broker
+  client.loop();
+  delay(1000); 
+  
+}
+

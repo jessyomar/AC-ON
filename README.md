@@ -15,6 +15,30 @@ Website: harryjessy.site
 
 
 
+Software and tools required for the project:
+
+  The materials used for the implementation of this project were:
+
+Visual Studio Code, which we used as our development environment
+PlatformIO, an extension of VS Code that helped us with ESP32 programming
+An ESP32 starter kit, which provided us with the necessary hardware
+LMT-84 temperature sensor
+HC-SR04 distance sensor 
+Breadboard and jumper cables
+Red LED, which we used for visual output
+AWS, which we used for cloud computing
+Puttygen and whois.com, which we used for SSH access to the ESP32
+Windows PowerShell, for executing commands on the ESP32
+Node-RED, which we used for IoT automation
+Studio 3T, for managing the database
+Siri virtual assistant connected to node-red and mongodb
+MongoDB, which we used as our database
+An MQTT broker, which we used for message communication
+A 9V battery, used as a power supply for the ESP-32
+
+
+
+
 
 
 
